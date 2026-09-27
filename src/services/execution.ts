@@ -1,3 +1,5 @@
+import { apiClient } from './api-client';
+
 export type ExecutionStatus =
   | 'ACCEPTED'
   | 'COMPILATION_ERROR'
@@ -83,11 +85,6 @@ class ExecutionService {
     onProgress?.(10);
 
     try {
-      const normalizedBase = apiUrl
-        .replace(/(?:\/submit)+\/*$/i, '')
-        .replace(/\/(?:api\/v1)(?:\/api\/v1)+(?=\/|$)/i, '/api/v1')
-        .replace(/\/+$/, '');
-      const endpoint = `${normalizedBase}/submit`;
       const payload = {
         executionId,
         sourceCode,
@@ -101,27 +98,15 @@ class ExecutionService {
         lang: config.language,
       };
 
-      console.info('[CodeArena execution] request', {
-        executionId,
-        language: config.language,
-        sourceCodeLength: sourceCode.length,
-        stdinLength: stdin.length,
-        sourceFile: config.filename,
-        runtime: config.runtime,
-      });
-
       onProgress?.(35);
-      const response = await fetch(endpoint, {
-        method: 'POST',
-        headers: { Accept: 'application/json', 'Content-Type': 'application/json' },
-        body: JSON.stringify(payload),
+      const response = await apiClient.post('/submit', payload, {
         signal: controller.signal,
+        validateStatus: () => true,
       });
 
-      if (!response.ok) {
-        const detail = await response.text().catch(() => '');
-        let apiError: any;
-        try { apiError = JSON.parse(detail); } catch { apiError = null; }
+      if (response.status < 200 || response.status >= 300) {
+        const detail = typeof response.data === 'string' ? response.data : JSON.stringify(response.data ?? '');
+        const apiError = response.data;
         const errorCode = String(apiError?.error?.code || '').toUpperCase();
         const status = response.status === 400 || response.status === 422
           ? 'INVALID_REQUEST'
@@ -137,7 +122,7 @@ class ExecutionService {
       }
 
       onProgress?.(70);
-      const body = await response.json();
+      const body = response.data;
       const data = body?.data ?? body;
       const outputValue = data?.output ?? body?.output;
       const stdoutValue = typeof data?.stdout === 'string'
@@ -153,16 +138,6 @@ class ExecutionService {
       const stderr = typeof stderrValue === 'string' ? stderrValue : '';
       const compileError = asOptionalString(data?.compileError ?? body?.compileError) || '';
       const responseExecutionId = asOptionalString(data?.executionId ?? body?.executionId) || executionId;
-      console.info('[CodeArena execution] response', {
-        executionId: responseExecutionId,
-        language: config.language,
-        status: data?.status ?? body?.status ?? 'not reported',
-        compileExitCode: data?.compileExitCode ?? body?.compileExitCode ?? 'not reported',
-        processStarted: data?.processStarted ?? body?.processStarted ?? 'not reported',
-        processExitCode: data?.exitCode ?? body?.exitCode ?? 'not reported',
-        stdoutLength: stdoutPresent ? stdout.length : 'stdout field missing',
-        stderrLength: stderr.length,
-      });
       const status = normalizeStatus(data?.status ?? body?.status);
       const exitCode = typeof data?.exitCode === 'number'
         ? data.exitCode
@@ -210,7 +185,7 @@ class ExecutionService {
         message,
       };
     } catch (error) {
-      if (error instanceof Error && error.name === 'AbortError') {
+      if (controller.signal.aborted || (error instanceof Error && error.name === 'AbortError')) {
         return resultError(executionId, 'TIME_LIMIT_EXCEEDED', 'Execution service did not respond within 30 seconds.');
       }
       const message = error instanceof Error ? error.message : 'Unknown execution service error.';

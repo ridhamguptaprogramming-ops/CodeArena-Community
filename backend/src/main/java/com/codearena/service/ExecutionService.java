@@ -15,6 +15,7 @@ import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.FileVisitResult;
 import java.nio.file.Files;
+import java.nio.file.LinkOption;
 import java.nio.file.Path;
 import java.nio.file.SimpleFileVisitor;
 import java.nio.file.attribute.BasicFileAttributes;
@@ -117,9 +118,12 @@ public class ExecutionService {
     }
 
     private Path createWorkspace(String executionId) throws IOException {
-        Files.createDirectories(properties.tempRoot());
-        setPermissions(properties.tempRoot(), EnumSet.of(PosixFilePermission.OWNER_READ, PosixFilePermission.OWNER_WRITE, PosixFilePermission.OWNER_EXECUTE));
-        Path workspace = Files.createTempDirectory(properties.tempRoot(), executionId + "-");
+        Path root = properties.tempRoot().toAbsolutePath().normalize();
+        if (Files.isSymbolicLink(root)) throw new IOException("Execution temp root cannot be a symbolic link.");
+        Files.createDirectories(root);
+        if (!Files.isDirectory(root, LinkOption.NOFOLLOW_LINKS)) throw new IOException("Execution temp root is not a directory.");
+        setPermissions(root, EnumSet.of(PosixFilePermission.OWNER_READ, PosixFilePermission.OWNER_WRITE, PosixFilePermission.OWNER_EXECUTE));
+        Path workspace = Files.createTempDirectory(root, executionId + "-");
         setPermissions(workspace, EnumSet.allOf(PosixFilePermission.class));
         return workspace;
     }
