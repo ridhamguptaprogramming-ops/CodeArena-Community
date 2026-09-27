@@ -47,6 +47,8 @@ const EditorPage = () => {
   const [executing, setExecuting] = createSignal(false);
   const [sidebarOpen, setSidebarOpen] = createSignal(true);
   const [fontSize, setFontSize] = createSignal(storageService.getFontSize());
+  const [minimapEnabled, setMinimapEnabled] = createSignal(true);
+  const [wordWrap, setWordWrap] = createSignal(false);
   const [showSettings, setShowSettings] = createSignal(false);
   const [progress, setProgress] = createSignal(0);
   const [codeStats, setCodeStats] = createSignal({ lines: 0, words: 0 });
@@ -62,6 +64,7 @@ const EditorPage = () => {
   );
   let monacoEditor: monaco.editor.IStandaloneCodeEditor | undefined;
   const { uiTheme } = useTheme();
+  let editorWorkspace: HTMLElement | undefined;
 
   const currentFile = () => files().find(f => f.id === activeFileId()) || files()[0];
 
@@ -90,6 +93,10 @@ const EditorPage = () => {
       if ((event.ctrlKey || event.metaKey) && event.key === 'Enter') {
         event.preventDefault();
         runCode();
+      } else if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === 's') {
+        event.preventDefault();
+        storageService.saveFiles(files());
+        setExecutionStage('Workspace saved locally');
       }
     };
     window.addEventListener('keydown', handleShortcuts);
@@ -111,6 +118,7 @@ const EditorPage = () => {
       stderr: '',
       compileError: '',
       status: 'RUNNING',
+      outputTruncated: false,
       executionTime: null,
       exitCode: null,
       memoryUsage: null,
@@ -139,8 +147,7 @@ const EditorPage = () => {
         standardInput,
         (p: number) => {
           setProgress(p);
-          if (p >= 35 && p < 70) setExecutionStage('Compiling...');
-          if (p >= 70 && p < 100) setExecutionStage('Running...');
+          if (p < 100) setExecutionStage('Submitting to execution service...');
           if (p >= 100) setExecutionStage('Completed');
         }
       );
@@ -155,6 +162,7 @@ const EditorPage = () => {
         executionTime: result.executionTime,
         exitCode: result.exitCode,
         memoryUsage: result.memoryUsage,
+        outputTruncated: result.outputTruncated,
         message: result.message,
       } : item));
       const historyEntry = {
@@ -179,6 +187,15 @@ const EditorPage = () => {
     } finally {
       setExecuting(false);
       setTimeout(() => setProgress(0), 1000);
+    }
+  };
+
+  const toggleFullscreen = async () => {
+    try {
+      if (document.fullscreenElement === editorWorkspace) await document.exitFullscreen();
+      else await editorWorkspace?.requestFullscreen();
+    } catch {
+      setExecutionStage('Fullscreen is unavailable in this browser');
     }
   };
 
@@ -233,6 +250,8 @@ const EditorPage = () => {
           }
         }}
         onRun={runCode}
+        onFormat={() => { void monacoEditor?.getAction('editor.action.formatDocument')?.run(); }}
+        onToggleFullscreen={toggleFullscreen}
         onVisualize={visualizeCode}
         executing={executing()}
         progress={progress()}
@@ -289,13 +308,15 @@ const EditorPage = () => {
         </Show>
 
         {/* Main Editor Zone */}
-        <main class="flex-1 flex flex-col relative min-w-0 bg-bg-secondary">
+        <main ref={editorWorkspace} class="flex-1 flex flex-col relative min-w-0 bg-bg-secondary">
           <div class="flex-1 flex flex-col min-h-0 relative">
              <MonacoWrapper
                 value={currentFile().code}
                 language={currentFile().lang}
                 theme={uiTheme() === 'dark' ? 'vs-dark' : 'github-light'}
                 fontSize={fontSize()}
+                minimap={minimapEnabled()}
+                wordWrap={wordWrap() ? 'on' : 'off'}
                 onCodeChange={(code) => {
                   setFiles(prev => prev.map(f => f.id === activeFileId() ? { ...f, code } : f));
                 }}
@@ -306,7 +327,7 @@ const EditorPage = () => {
           {/* Status Bar */}
           <div class="h-8 border-t border-border bg-bg-tertiary px-6 flex items-center justify-between text-[10px] text-brand-secondary font-bold uppercase tracking-widest shrink-0">
             <div class="flex items-center gap-6">
-              <span class="flex items-center gap-2 text-emerald-500"><div class="w-1 h-1 rounded-full bg-current" /> System Ready</span>
+              <span class="flex items-center gap-2 text-emerald-500"><div class="w-1 h-1 rounded-full bg-current" /> Editor Ready</span>
               <span>UTF-8</span>
             </div>
             <div class="flex items-center gap-6">
@@ -323,6 +344,8 @@ const EditorPage = () => {
                 sidebar
                 currentFile={currentFile()}
                 fontSize={fontSize()}
+                minimapEnabled={minimapEnabled()}
+                wordWrap={wordWrap()}
                 input={input()}
                 executing={executing()}
                 progress={progress()}
@@ -333,6 +356,8 @@ const EditorPage = () => {
                 onLanguageChange={handleLanguageChange}
                 onInputChange={setInput}
                 onFontSizeChange={setFontSize}
+                onMinimapChange={setMinimapEnabled}
+                onWordWrapChange={setWordWrap}
                 onClearOutput={() => {
                   const fileId = activeFileId();
                   setFiles(prev => prev.map(item => item.id === fileId ? {
@@ -345,12 +370,14 @@ const EditorPage = () => {
                     executionTime: null,
                     exitCode: null,
                     memoryUsage: null,
+                    outputTruncated: false,
                   } : item));
                   setExecutionStage('');
                 }}
                 onSelectHistory={(entry) => {
                   const fileId = activeFileId();
                   const option = LANGUAGE_OPTIONS.find(item => item.value === entry.language);
+                  setInput(entry.stdin || '');
                   setFiles(prev => prev.map(item => item.id === fileId ? {
                     ...item,
                     lang: entry.language,
@@ -366,6 +393,7 @@ const EditorPage = () => {
                     executionTime: entry.result.executionTime,
                     exitCode: entry.result.exitCode,
                     memoryUsage: entry.result.memoryUsage,
+                    outputTruncated: entry.result.outputTruncated,
                     message: entry.result.message,
                   } : item));
                   setExecutionStage('Completed');

@@ -1,0 +1,28 @@
+server:
+  port: ${PORT:8080}
+  error:
+    include-message: never
+
+spring:
+  application:
+    name: codearena-backend
+  jackson:
+    default-property-inclusion: non_null
+
+codearena:
+  cors:
+    allowed-origins: ${CORS_ALLOWED_ORIGINS:http://localhost:5173,http://localhost:4173}
+  execution:
+    docker-image: ${CODEARENA_SANDBOX_IMAGE:codearena/sandbox:latest}
+    docker-command: ${DOCKER_COMMAND:docker}
+    temp-root: ${EXECUTION_TEMP_ROOT:${java.io.tmpdir}/codearena-executions}
+    timeout-seconds: ${EXECUTION_TIMEOUT_SECONDS:5}
+    compile-timeout-seconds: ${COMPILE_TIMEOUT_SECONDS:25}
+    max-source-bytes: ${MAX_SOURCE_BYTES:131072}
+    max-stdin-bytes: ${MAX_STDIN_BYTES:65536}
+    max-output-bytes: ${MAX_OUTPUT_BYTES:1048576}
+    max-parallel-executions: ${MAX_PARALLEL_EXECUTIONS:4}
+
+logging:
+  level:
+    com.codearena: INFO

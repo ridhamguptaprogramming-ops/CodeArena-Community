@@ -6,6 +6,8 @@ interface MonacoWrapperProps {
   language?: string;
   theme?: string;
   fontSize?: number;
+  minimap?: boolean;
+  wordWrap?: 'on' | 'off';
   onCodeChange?: (code: string) => void;
   onEditorReady?: (editor: monaco.editor.IStandaloneCodeEditor) => void;
   options?: monaco.editor.IStandaloneEditorConstructionOptions;
@@ -26,7 +28,8 @@ const MonacoWrapper = (props: MonacoWrapperProps) => {
       automaticLayout: true,
       fontSize: props.fontSize || 16,
       fontFamily: "'JetBrains Mono', 'Fira Code', monospace",
-      minimap: { enabled: true },
+      minimap: { enabled: props.minimap ?? true },
+      wordWrap: props.wordWrap || 'off',
       scrollBeyondLastLine: false,
       padding: { top: 16, bottom: 16 },
       lineNumbersMinChars: 3,
@@ -73,6 +76,15 @@ const MonacoWrapper = (props: MonacoWrapperProps) => {
   createEffect(() => {
     if (editor && props.fontSize) {
       editor.updateOptions({ fontSize: props.fontSize });
+    }
+  });
+
+  createEffect(() => {
+    if (editor) {
+      editor.updateOptions({
+        minimap: { enabled: props.minimap ?? true },
+        wordWrap: props.wordWrap || 'off',
+      });
     }
   });
 

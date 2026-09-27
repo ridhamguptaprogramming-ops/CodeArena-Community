@@ -23,6 +23,8 @@ interface EditorToolbarProps {
   onAddFile: () => void;
   onDeleteFile: (id: number, e: MouseEvent) => void;
   onRun: () => void;
+  onFormat: () => void;
+  onToggleFullscreen: () => void;
   onVisualize: () => void;
   executing: boolean;
   progress: number;
@@ -82,6 +84,8 @@ const EditorToolbar = (props: EditorToolbarProps) => {
       </div>
 
       <div class="flex items-center gap-2 ml-4">
+        <Button variant="ghost" size="sm" class="hidden md:inline-flex" onClick={props.onFormat} aria-label="Format code">Format</Button>
+        <Button variant="ghost" size="icon" class="h-8 w-8" onClick={props.onToggleFullscreen} aria-label="Toggle editor fullscreen">⛶</Button>
         <div class="flex items-center bg-bg-tertiary rounded-xl p-1 border border-border">
           <Button 
             variant="brand" 

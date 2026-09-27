@@ -17,6 +17,7 @@ export interface ExecutionResult {
   exitCode: number | null;
   executionTime: string | null;
   memoryUsage: string | null;
+  outputTruncated: boolean;
   message: string;
 }
 
@@ -55,7 +56,7 @@ const normalizeStatus = (status: unknown): ExecutionStatus | null => {
 
 const resultError = (executionId: string, status: ExecutionStatus, message: string): ExecutionResult => ({
   executionId, status, stdout: '', stderr: message, compileError: '', exitCode: null,
-  executionTime: null, memoryUsage: null, message,
+  executionTime: null, memoryUsage: null, outputTruncated: false, message,
 });
 
 const asOptionalString = (value: unknown): string | null => {
@@ -82,7 +83,11 @@ class ExecutionService {
     onProgress?.(10);
 
     try {
-      const endpoint = `${apiUrl.replace(/(?:\/submit)+\/*$/i, '').replace(/\/+$/, '')}/submit`;
+      const normalizedBase = apiUrl
+        .replace(/(?:\/submit)+\/*$/i, '')
+        .replace(/\/(?:api\/v1)(?:\/api\/v1)+(?=\/|$)/i, '/api/v1')
+        .replace(/\/+$/, '');
+      const endpoint = `${normalizedBase}/submit`;
       const payload = {
         executionId,
         sourceCode,
@@ -115,12 +120,19 @@ class ExecutionService {
 
       if (!response.ok) {
         const detail = await response.text().catch(() => '');
+        let apiError: any;
+        try { apiError = JSON.parse(detail); } catch { apiError = null; }
+        const errorCode = String(apiError?.error?.code || '').toUpperCase();
         const status = response.status === 400 || response.status === 422
           ? 'INVALID_REQUEST'
           : response.status === 503 || response.status === 502 || response.status === 404 || response.status >= 500
             ? 'SERVICE_UNAVAILABLE'
             : 'SYSTEM_ERROR';
-        const message = detail || (status === 'INVALID_REQUEST' ? 'Invalid execution request.' : 'Execution service unavailable.');
+        const message = apiError?.error?.message
+          || apiError?.message
+          || (errorCode ? `${errorCode.replace(/_/g, ' ')}.` : '')
+          || detail
+          || (status === 'INVALID_REQUEST' ? 'Invalid execution request.' : 'Execution service unavailable.');
         return resultError(executionId, status, message);
       }
 
@@ -139,8 +151,10 @@ class ExecutionService {
       const stdoutPresent = typeof stdoutValue === 'string';
       const stdout = stdoutPresent ? stdoutValue : '';
       const stderr = typeof stderrValue === 'string' ? stderrValue : '';
+      const compileError = asOptionalString(data?.compileError ?? body?.compileError) || '';
+      const responseExecutionId = asOptionalString(data?.executionId ?? body?.executionId) || executionId;
       console.info('[CodeArena execution] response', {
-        executionId,
+        executionId: responseExecutionId,
         language: config.language,
         status: data?.status ?? body?.status ?? 'not reported',
         compileExitCode: data?.compileExitCode ?? body?.compileExitCode ?? 'not reported',
@@ -149,7 +163,6 @@ class ExecutionService {
         stdoutLength: stdoutPresent ? stdout.length : 'stdout field missing',
         stderrLength: stderr.length,
       });
-      const compileError = asOptionalString(data?.compileError ?? body?.compileError) || '';
       const status = normalizeStatus(data?.status ?? body?.status);
       const exitCode = typeof data?.exitCode === 'number'
         ? data.exitCode
@@ -165,7 +178,7 @@ class ExecutionService {
       if (!stdoutPresent) {
         const message = 'Execution service response is missing the stdout field.';
         return {
-          executionId,
+          executionId: responseExecutionId,
           status: 'SYSTEM_ERROR',
           stdout: '',
           stderr: stderr ? `${stderr}\n${message}` : message,
@@ -173,6 +186,7 @@ class ExecutionService {
           exitCode,
           executionTime: asOptionalString(data?.executionTime ?? data?.time ?? body?.executionTime ?? body?.time),
           memoryUsage: asOptionalString(data?.memoryUsage ?? data?.memory ?? body?.memoryUsage ?? body?.memory),
+          outputTruncated: Boolean(data?.outputTruncated ?? body?.outputTruncated),
           message,
         };
       }
@@ -184,7 +198,7 @@ class ExecutionService {
 
       onProgress?.(100);
       return {
-        executionId,
+        executionId: responseExecutionId,
         status: finalStatus,
         stdout,
         stderr,
@@ -192,6 +206,7 @@ class ExecutionService {
         exitCode,
         executionTime: asOptionalString(data?.executionTime ?? data?.time ?? body?.executionTime ?? body?.time),
         memoryUsage: asOptionalString(data?.memoryUsage ?? data?.memory ?? body?.memoryUsage ?? body?.memory),
+        outputTruncated: Boolean(data?.outputTruncated ?? body?.outputTruncated),
         message,
       };
     } catch (error) {

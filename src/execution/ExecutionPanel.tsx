@@ -16,6 +16,8 @@ import { cn } from '../utils/cn';
 interface ExecutionPanelProps {
   currentFile: any;
   fontSize: number;
+  minimapEnabled: boolean;
+  wordWrap: boolean;
   input: string;
   executing: boolean;
   progress: number;
@@ -26,6 +28,8 @@ interface ExecutionPanelProps {
   onLanguageChange: (lang: string) => void;
   onInputChange: (input: string) => void;
   onFontSizeChange: (size: number) => void;
+  onMinimapChange: (enabled: boolean) => void;
+  onWordWrapChange: (enabled: boolean) => void;
   onClearOutput: () => void;
   onSelectHistory: (entry: any) => void;
   onVisualize: () => void;
@@ -38,7 +42,7 @@ const ExecutionPanel = (props: ExecutionPanelProps) => {
     ? status.toLowerCase().replace(/_/g, ' ').replace(/\b\w/g, (letter) => letter.toUpperCase())
     : 'Idle';
   const durationLabel = (duration?: string | null) => duration
-    ? (/\b(ms|s|sec|seconds?)\b/i.test(duration) ? duration : `${duration}s`)
+    ? (/^\d+(?:\.\d+)?$/.test(duration) ? `${duration} ms` : /\b(ms|s|sec|seconds?)\b/i.test(duration) ? duration : `${duration}s`)
     : 'Not available';
 
   createEffect(() => {
@@ -86,6 +90,14 @@ const ExecutionPanel = (props: ExecutionPanelProps) => {
                   class="w-full accent-accent-blue h-1.5 bg-border rounded-full appearance-none cursor-pointer"
                 />
               </div>
+              <label class="flex items-center justify-between gap-4 text-xs">
+                <span>Show minimap</span>
+                <input type="checkbox" checked={props.minimapEnabled} onChange={(event) => props.onMinimapChange(event.currentTarget.checked)} />
+              </label>
+              <label class="flex items-center justify-between gap-4 text-xs">
+                <span>Word wrap</span>
+                <input type="checkbox" checked={props.wordWrap} onChange={(event) => props.onWordWrapChange(event.currentTarget.checked)} />
+              </label>
               <Button variant="outline" size="sm" class="w-full text-[10px] font-bold uppercase tracking-wider" onClick={props.onClearOutput} leftIcon={<Trash2 class="w-3.5 h-3.5" />}>
                 Clear Execution Output
               </Button>
@@ -124,9 +136,31 @@ const ExecutionPanel = (props: ExecutionPanelProps) => {
 
 
             <div class="space-y-2">
-              <label class="text-[11px] font-bold text-foreground">Standard Input (stdin)</label>
+              <div class="flex items-center justify-between gap-2">
+                <label for="execution-stdin" class="text-[11px] font-bold text-foreground">Standard Input (stdin)</label>
+                <div class="flex items-center gap-2">
+                  <Show when={props.history.some(entry => Boolean(entry.stdin))}>
+                    <select
+                      aria-label="Load input from execution history"
+                      class="max-w-28 rounded-md border border-border bg-bg-secondary px-2 py-1 text-[10px] text-brand-secondary"
+                      value=""
+                      onChange={(event) => {
+                        const selected = props.history.find(entry => String(entry.id) === event.currentTarget.value);
+                        if (selected) props.onInputChange(selected.stdin || '');
+                        event.currentTarget.value = '';
+                      }}
+                    >
+                      <option value="">Input history</option>
+                      <For each={props.history.filter(entry => Boolean(entry.stdin))}>{(entry) => <option value={entry.id}>{entry.timestamp} · {entry.language}</option>}</For>
+                    </select>
+                  </Show>
+                  <button type="button" class="text-[10px] font-medium text-brand-secondary hover:text-foreground" onClick={() => props.onInputChange('10 20')}>Sample</button>
+                  <button type="button" class="text-[10px] font-medium text-brand-secondary hover:text-foreground" onClick={() => props.onInputChange('')}>Clear</button>
+                </div>
+              </div>
               <textarea
-                class="w-full bg-bg-tertiary border border-border rounded-xl px-4 py-3 text-xs font-mono focus:ring-2 focus:ring-accent-blue/10 outline-none min-h-[100px] resize-none transition-all placeholder:text-muted"
+                id="execution-stdin"
+                class="w-full bg-bg-tertiary border border-border rounded-xl px-4 py-3 text-xs font-mono focus:ring-2 focus:ring-accent-blue/10 outline-none min-h-[100px] resize-y transition-all placeholder:text-muted"
                 value={props.input}
                 onInput={(e) => props.onInputChange(e.currentTarget.value)}
                 placeholder="Data to feed your application..."
@@ -145,7 +179,7 @@ const ExecutionPanel = (props: ExecutionPanelProps) => {
                 <div class="flex items-center gap-4 text-[10px] font-bold">
                   <Show when={props.currentFile?.executionTime}>
                     <span class="text-brand-secondary flex items-center gap-1.5">
-                      <Clock class="w-3.5 h-3.5" /> {props.currentFile.executionTime}s
+                      <Clock class="w-3.5 h-3.5" /> {durationLabel(props.currentFile.executionTime)}
                     </span>
                   </Show>
                 </div>
@@ -186,6 +220,9 @@ const ExecutionPanel = (props: ExecutionPanelProps) => {
 
             <div class="flex-1 p-5 overflow-auto scrollbar-thin">
               <Show when={activeTab() === 'output'}>
+                <Show when={props.currentFile?.outputTruncated}>
+                  <p class="mb-3 rounded-lg border border-amber-500/20 bg-amber-500/10 px-3 py-2 text-xs text-amber-600">Output exceeded the capture limit and was truncated.</p>
+                </Show>
                 <Show when={props.executing || props.currentFile?.status} fallback={
                   <div class="h-full flex flex-col items-center justify-center text-brand-secondary gap-3 opacity-30">
                     <Terminal class="w-10 h-10" />
