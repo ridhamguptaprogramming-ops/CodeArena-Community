@@ -117,3 +117,7 @@ Implemented: the browser editor-to-API execution path, Docker-backed isolated ex
 Not implemented yet: accounts/JWT, roles, PostgreSQL/Supabase persistence and migrations, problem/test-case judging, Redis/RabbitMQ queuing, WebSocket status updates, per-process memory measurement, and an assessment/contest backend. The execution endpoint is synchronous and uses a bounded in-process concurrency semaphore; it is not a distributed worker queue.
 
 For production, deploy the API on a dedicated Docker-capable worker host, set `CORS_ALLOWED_ORIGINS` to the exact frontend origin, and add authentication, per-user quotas, persistent job handling, and operational monitoring before public launch.
+
+## Community
+
+To report harassment, discrimination, or other unacceptable behavior, see the [CodeArena Reporting Guidelines](CODE_OF_CONDUCT.md).
