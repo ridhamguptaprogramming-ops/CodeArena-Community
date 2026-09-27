@@ -121,3 +121,7 @@ For production, deploy the API on a dedicated Docker-capable worker host, set `C
 ## Community
 
 To report harassment, discrimination, or other unacceptable behavior, see the [CodeArena Reporting Guidelines](CODE_OF_CONDUCT.md).
+
+## Help
+
+See the [Frequently Asked Questions](FAQ.md) for information about CodeArena, supported languages, and code execution.
