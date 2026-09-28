@@ -11,7 +11,7 @@ spring:
 
 codearena:
   cors:
-    allowed-origins: ${CORS_ALLOWED_ORIGINS:http://localhost:5173,http://localhost:4173}
+    allowed-origins: ${CORS_ALLOWED_ORIGINS:http://localhost:5173,http://localhost:3000,http://localhost:4173,https://codearena-compiler.vercel.app}
   execution:
     docker-image: ${CODEARENA_SANDBOX_IMAGE:codearena/sandbox:latest}
     docker-command: ${DOCKER_COMMAND:docker}

@@ -138,18 +138,14 @@ const EditorPage = () => {
 
     setExecuting(true);
     setProgress(10);
-    setExecutionStage('Preparing...');
+    setExecutionStage('Waiting for execution API response...');
 
     try {
       const result = await executionService.execute(
         sourceCode,
         language,
         standardInput,
-        (p: number) => {
-          setProgress(p);
-          if (p < 100) setExecutionStage('Submitting to execution service...');
-          if (p >= 100) setExecutionStage('Completed');
-        }
+        (p: number) => setProgress(p)
       );
       setExecutionStage(result.status === 'ACCEPTED' ? 'Completed' : result.status.replace(/_/g, ' '));
       setFiles(prev => prev.map(item => item.id === fileId ? {

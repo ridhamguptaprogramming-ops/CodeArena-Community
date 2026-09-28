@@ -227,7 +227,7 @@ const ExecutionPanel = (props: ExecutionPanelProps) => {
                   <div class="h-full flex flex-col items-center justify-center text-brand-secondary gap-3 opacity-30">
                     <Terminal class="w-10 h-10" />
                     <span class="text-[10px] uppercase tracking-[0.2em] font-black text-center leading-loose">
-                      Ready to compile<br/>Press Run Command
+                      Ready to run<br/>Press Run
                     </span>
                   </div>
                 }>

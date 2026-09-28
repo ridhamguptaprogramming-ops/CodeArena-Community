@@ -68,7 +68,7 @@ const asOptionalString = (value: unknown): string | null => {
 };
 
 class ExecutionService {
-  private readonly timeoutMs = 30000;
+  private readonly timeoutMs = 40000;
 
   async execute(sourceCode: string, language: string, stdin: string, onProgress?: ProgressHandler): Promise<ExecutionResult> {
     const executionId = makeId();
@@ -82,8 +82,6 @@ class ExecutionService {
 
     const controller = new AbortController();
     const timeoutId = window.setTimeout(() => controller.abort(), this.timeoutMs);
-    onProgress?.(10);
-
     try {
       const payload = {
         executionId,
@@ -98,7 +96,6 @@ class ExecutionService {
         lang: config.language,
       };
 
-      onProgress?.(35);
       const response = await apiClient.post('/submit', payload, {
         signal: controller.signal,
         validateStatus: () => true,
@@ -121,7 +118,6 @@ class ExecutionService {
         return resultError(executionId, status, message);
       }
 
-      onProgress?.(70);
       const body = response.data;
       const data = body?.data ?? body;
       const outputValue = data?.output ?? body?.output;
@@ -186,7 +182,7 @@ class ExecutionService {
       };
     } catch (error) {
       if (controller.signal.aborted || (error instanceof Error && error.name === 'AbortError')) {
-        return resultError(executionId, 'TIME_LIMIT_EXCEEDED', 'Execution service did not respond within 30 seconds.');
+        return resultError(executionId, 'SERVICE_UNAVAILABLE', 'Execution API did not respond within 40 seconds. Check that the backend is online and reachable.');
       }
       const message = error instanceof Error ? error.message : 'Unknown execution service error.';
       return resultError(executionId, 'SERVICE_UNAVAILABLE', `Execution service unavailable: ${message}`);

@@ -46,7 +46,7 @@ The frontend remains at the repository root. The new `backend/` directory contai
    VITE_API_URL=http://localhost:8080/api/v1
    ```
 
-   `VITE_API_URL` is the API base path; the frontend adds `/submit` itself.
+   `VITE_API_URL` is the API base path; the frontend adds `/submit` itself. The default Vite port is 5173 and is allowed by the backend's local CORS configuration.
 
 4. From the repository root, install dependencies and start Vite:
 
@@ -93,11 +93,11 @@ The backend must run on a host whose Docker daemon can access the configured exe
 
 ## Configuration
 
-Frontend: `.env.example` contains `VITE_API_URL`.
+Frontend: `.env.example` contains `VITE_API_URL`. Set the same variable in the Vercel project to the Render API base URL ending in `/api/v1` (for example, `https://<your-render-service>.onrender.com/api/v1`).
 
 Backend: see `backend/.env.example`. Runtime settings can be supplied as environment variables, including `CODEARENA_SANDBOX_IMAGE`, `EXECUTION_TEMP_ROOT`, `EXECUTION_TIMEOUT_SECONDS`, `COMPILE_TIMEOUT_SECONDS`, `MAX_SOURCE_BYTES`, `MAX_STDIN_BYTES`, `MAX_OUTPUT_BYTES`, `MAX_PARALLEL_EXECUTIONS`, and `CORS_ALLOWED_ORIGINS`.
 
-No database credentials or service keys are required by the execution API.
+The current execution API does not use a database, Supabase, Redis, or RabbitMQ. The blank variables in `backend/.env.example` are reserved for future platform features, not active connectors. Do not set or treat them as connected. No credentials or service keys are required by the current execution API.
 
 ## Tests
 
@@ -112,11 +112,11 @@ Tests skip if Docker or the sandbox image is unavailable. They cover all five ru
 
 ## Current scope
 
-Implemented: the browser editor-to-API execution path, Docker-backed isolated execution, health endpoint, structured errors, and Docker integration tests.
+Implemented: the browser editor-to-API execution path, Docker-backed isolated execution, health endpoint, structured errors, local session execution history, and Docker integration tests.
 
-Not implemented yet: accounts/JWT, roles, PostgreSQL/Supabase persistence and migrations, problem/test-case judging, Redis/RabbitMQ queuing, WebSocket status updates, per-process memory measurement, and an assessment/contest backend. The execution endpoint is synchronous and uses a bounded in-process concurrency semaphore; it is not a distributed worker queue.
+Not implemented yet: accounts/JWT, roles, PostgreSQL/Supabase persistence and migrations, server-side submission history/details, problems/test-case judging, Redis/RabbitMQ queuing, WebSocket status updates, per-process memory measurement, and an assessment/contest backend. The execution endpoint is synchronous and uses a bounded in-process concurrency semaphore; it is not a distributed worker queue. The frontend displays actual request pending state only; it does not simulate compile/run progress.
 
-For production, deploy the API on a dedicated Docker-capable worker host, set `CORS_ALLOWED_ORIGINS` to the exact frontend origin, and add authentication, per-user quotas, persistent job handling, and operational monitoring before public launch.
+For production, deploy the API on a dedicated Docker-capable Render worker host, build and provide `codearena/sandbox:latest` on that host, set `VITE_API_URL` on Vercel to the Render URL ending in `/api/v1`, and set `CORS_ALLOWED_ORIGINS` to the exact Vercel origin. Render must support Docker Engine and local access to its Docker daemon for this design; a service without Docker access will report the execution worker as unavailable. Database, auth, queue, and WebSocket features must be implemented and configured before those connectors can be considered available.
 
 ## Community
 
