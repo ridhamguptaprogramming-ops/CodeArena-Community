@@ -13,6 +13,7 @@
   "dependencies": {
     "@solidjs/router": "^0.15.4",
     "@types/file-saver": "^2.0.7",
+    "@vercel/speed-insights": "^2.0.0",
     "axios": "^1.13.6",
     "clsx": "^2.1.1",
     "file-saver": "^2.0.5",
