@@ -1,5 +1,6 @@
 import { Router, Route } from '@solidjs/router';
 import { onMount } from 'solid-js';
+import { inject } from '@vercel/analytics';
 import Landing from '../pages/Landing';
 import Editor from '../pages/Editor';
 import Visualizer from '../visualization/Visualizer';
@@ -13,6 +14,9 @@ const App = () => {
     onMount(() => {
         const theme = storageService.getUiTheme();
         document.documentElement.setAttribute('data-theme', theme);
+        
+        // Initialize Vercel Web Analytics
+        inject();
     });
 
     return (
